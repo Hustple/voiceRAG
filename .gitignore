@@ -1,0 +1,23 @@
+# Environment — never commit real keys
+.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Data — too large for git, generated at runtime
+data/
+ingestion/corpus/*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.DS_Store

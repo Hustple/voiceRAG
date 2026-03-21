@@ -1,0 +1,33 @@
+version: "3.11"
+
+services:
+  voicerag:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicerag-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CHROMA_PERSIST_PATH=/app/data/chroma
+      - QUERY_LOG_PATH=/app/data/logs/queries.db
+      - CORPUS_PATH=/app/data/corpus
+    volumes:
+      - chroma_data:/app/data/chroma
+      - query_logs:/app/data/logs
+      - ./ingestion/corpus:/app/data/corpus:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+    driver: local
+  query_logs:
+    driver: local

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint + Test
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'ci-dummy-key' }}
+      APP_ENV: development
+      CHROMA_PERSIST_PATH: /tmp/chroma
+      QUERY_LOG_PATH: /tmp/logs/queries.db
+      CORPUS_PATH: /tmp/corpus
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dev dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ruff pytest pytest-asyncio pytest-cov httpx \
+                      pydantic pydantic-settings python-dotenv \
+                      structlog fastapi uvicorn sse-starlette chromadb
+      - name: Lint
+        run: ruff check . --output-format=github
+      - name: Format check
+        run: ruff format --check .
+      - name: Test
+        run: pytest --tb=short -q
+
+  docker-build:
+    name: Docker smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t voicerag:ci .
+      - name: Start + health check
+        run: |
+          docker run -d -e GROQ_API_KEY=ci-dummy -e APP_ENV=development \
+            -p 8000:8000 --name voicerag-ci voicerag:ci
+          sleep 15
+          curl --fail http://localhost:8000/health || (docker logs voicerag-ci && exit 1)
+      - if: always()
+        run: docker rm -f voicerag-ci

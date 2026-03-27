@@ -1,16 +1,6 @@
 """
-LangGraph StateGraph — full Self-CRAG pipeline.
-
-T5 update: real CRAG routing + Self-RAG for moderate/complex queries.
-
-Flow:
-  asr → classifier → [hyde if complex] → retriever →
-  crag_evaluator →
-    INCORRECT → END (abstain)
-    CORRECT/AMBIGUOUS + simple → generator → citation_builder → END
-    CORRECT/AMBIGUOUS + moderate/complex → self_rag →
-      IsUSE=yes → citation_builder → END
-      IsUSE=no  → retriever (retry, max once)
+LangGraph StateGraph — full Self-CRAG pipeline with real generator.
+T6 update: real generator and citation_builder nodes.
 """
 from __future__ import annotations
 from langgraph.graph import StateGraph, END
@@ -20,11 +10,9 @@ from pipeline.nodes.hyde import hyde_node
 from pipeline.nodes.retriever import retriever_node
 from pipeline.nodes.crag_evaluator import crag_evaluator_node
 from pipeline.nodes.self_rag import self_rag_node
-from pipeline.nodes.stub_nodes import (
-    asr_node,
-    generator_node,
-    citation_builder_node,
-)
+from pipeline.nodes.generator import generator_node
+from pipeline.nodes.citation_builder import citation_builder_node
+from pipeline.nodes.stub_nodes import asr_node
 
 
 def _route_after_classifier(state: PipelineState) -> str:
@@ -32,14 +20,9 @@ def _route_after_classifier(state: PipelineState) -> str:
 
 
 def _route_after_crag(state: PipelineState) -> str:
-    """
-    INCORRECT → end immediately (abstain).
-    simple route → skip Self-RAG, go straight to generator.
-    moderate/complex → run Self-RAG reflection.
-    """
     action = state.get("crag_action", "CORRECT")
     if action == "INCORRECT":
-        return "end"
+        return "generator"  # generator handles abstain response
     route = state.get("route", "moderate")
     if route == "simple":
         return "generator"
@@ -47,20 +30,12 @@ def _route_after_crag(state: PipelineState) -> str:
 
 
 def _route_after_self_rag(state: PipelineState) -> str:
-    """
-    If Self-RAG flagged answer as not useful and retries remain → retriever.
-    Otherwise → generator.
-    """
     answer = state.get("answer", "")
     retries = state.get("self_rag_retries", 0)
-    if not answer and retries <= settings_max_retries():
+    from app.config import settings
+    if not answer and retries <= settings.SELF_RAG_MAX_RETRIES:
         return "retriever"
     return "generator"
-
-
-def settings_max_retries() -> int:
-    from app.config import settings
-    return settings.SELF_RAG_MAX_RETRIES
 
 
 def build_graph() -> StateGraph:
@@ -89,7 +64,7 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "crag_evaluator",
         _route_after_crag,
-        {"generator": "generator", "self_rag": "self_rag", "end": END},
+        {"generator": "generator", "self_rag": "self_rag"},
     )
 
     graph.add_conditional_edges(

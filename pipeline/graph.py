@@ -1,10 +1,11 @@
 """
-LangGraph StateGraph — full Self-CRAG pipeline with real generator.
-T6 update: real generator and citation_builder nodes.
+LangGraph StateGraph — full Self-CRAG pipeline.
+T7 update: real ASR node replaces stub.
 """
 from __future__ import annotations
 from langgraph.graph import StateGraph, END
 from pipeline.state import PipelineState
+from pipeline.nodes.asr import asr_node
 from pipeline.nodes.classifier import classifier_node
 from pipeline.nodes.hyde import hyde_node
 from pipeline.nodes.retriever import retriever_node
@@ -12,7 +13,6 @@ from pipeline.nodes.crag_evaluator import crag_evaluator_node
 from pipeline.nodes.self_rag import self_rag_node
 from pipeline.nodes.generator import generator_node
 from pipeline.nodes.citation_builder import citation_builder_node
-from pipeline.nodes.stub_nodes import asr_node
 
 
 def _route_after_classifier(state: PipelineState) -> str:
@@ -22,7 +22,7 @@ def _route_after_classifier(state: PipelineState) -> str:
 def _route_after_crag(state: PipelineState) -> str:
     action = state.get("crag_action", "CORRECT")
     if action == "INCORRECT":
-        return "generator"  # generator handles abstain response
+        return "generator"
     route = state.get("route", "moderate")
     if route == "simple":
         return "generator"

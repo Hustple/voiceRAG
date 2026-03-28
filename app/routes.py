@@ -1,15 +1,19 @@
 """
 VoiceRAG API routes — all endpoints.
 """
+
 from __future__ import annotations
+
 import json
 import uuid
+from typing import Optional
+
 import structlog
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
+
 from app.schemas import HealthResponse, TextQueryRequest
 from pipeline.state import PipelineState
-from typing import Optional
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -70,18 +74,21 @@ async def _run_pipeline_stream(
 
         # Log to SQLite in background
         from storage.query_log import write_query_record
+
         try:
-            write_query_record({
-                "query_id": query_id,
-                "transcript": result.get("transcript", query),
-                "lang": result.get("lang", "en"),
-                "routing_path": result.get("route", "unknown"),
-                "crag_action": result.get("crag_action", "UNKNOWN"),
-                "self_rag_retries": result.get("self_rag_retries", 0),
-                "confidence": result.get("confidence", 0.0),
-                "latency_ms": result.get("latency_map", {}),
-                "sources": sources,
-            })
+            write_query_record(
+                {
+                    "query_id": query_id,
+                    "transcript": result.get("transcript", query),
+                    "lang": result.get("lang", "en"),
+                    "routing_path": result.get("route", "unknown"),
+                    "crag_action": result.get("crag_action", "UNKNOWN"),
+                    "self_rag_retries": result.get("self_rag_retries", 0),
+                    "confidence": result.get("confidence", 0.0),
+                    "latency_ms": result.get("latency_map", {}),
+                    "sources": sources,
+                }
+            )
         except Exception as log_exc:
             logger.error("query_log.write_failed", error=str(log_exc))
 
@@ -95,6 +102,7 @@ async def _run_pipeline_stream(
 async def health() -> HealthResponse:
     from storage.chroma_client import get_chroma_client
     from storage.query_log import get_health_metrics
+
     try:
         client = get_chroma_client()
         collections = client.list_collections()
@@ -157,7 +165,7 @@ async def query_voice(
 
     return StreamingResponse(
         _run_pipeline_stream(
-            query="",           # transcript will be filled by ASR node
+            query="",  # transcript will be filled by ASR node
             lang_hint=lang,
             query_id=query_id,
             audio_bytes=audio_bytes,
@@ -171,6 +179,7 @@ async def query_voice(
 @router.get("/explain/{query_id}", tags=["observability"])
 async def explain(query_id: str) -> JSONResponse:
     from storage.query_log import get_query_record
+
     record = get_query_record(query_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No record for query_id={query_id}")

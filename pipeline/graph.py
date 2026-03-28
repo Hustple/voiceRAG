@@ -2,17 +2,20 @@
 LangGraph StateGraph — full Self-CRAG pipeline.
 T7 update: real ASR node replaces stub.
 """
+
 from __future__ import annotations
-from langgraph.graph import StateGraph, END
-from pipeline.state import PipelineState
+
+from langgraph.graph import END, StateGraph
+
 from pipeline.nodes.asr import asr_node
+from pipeline.nodes.citation_builder import citation_builder_node
 from pipeline.nodes.classifier import classifier_node
+from pipeline.nodes.crag_evaluator import crag_evaluator_node
+from pipeline.nodes.generator import generator_node
 from pipeline.nodes.hyde import hyde_node
 from pipeline.nodes.retriever import retriever_node
-from pipeline.nodes.crag_evaluator import crag_evaluator_node
 from pipeline.nodes.self_rag import self_rag_node
-from pipeline.nodes.generator import generator_node
-from pipeline.nodes.citation_builder import citation_builder_node
+from pipeline.state import PipelineState
 
 
 def _route_after_classifier(state: PipelineState) -> str:
@@ -33,6 +36,7 @@ def _route_after_self_rag(state: PipelineState) -> str:
     answer = state.get("answer", "")
     retries = state.get("self_rag_retries", 0)
     from app.config import settings
+
     if not answer and retries <= settings.SELF_RAG_MAX_RETRIES:
         return "retriever"
     return "generator"
@@ -41,13 +45,13 @@ def _route_after_self_rag(state: PipelineState) -> str:
 def build_graph() -> StateGraph:
     graph = StateGraph(PipelineState)
 
-    graph.add_node("asr",              asr_node)
-    graph.add_node("classifier",       classifier_node)
-    graph.add_node("hyde",             hyde_node)
-    graph.add_node("retriever",        retriever_node)
-    graph.add_node("crag_evaluator",   crag_evaluator_node)
-    graph.add_node("self_rag",         self_rag_node)
-    graph.add_node("generator",        generator_node)
+    graph.add_node("asr", asr_node)
+    graph.add_node("classifier", classifier_node)
+    graph.add_node("hyde", hyde_node)
+    graph.add_node("retriever", retriever_node)
+    graph.add_node("crag_evaluator", crag_evaluator_node)
+    graph.add_node("self_rag", self_rag_node)
+    graph.add_node("generator", generator_node)
     graph.add_node("citation_builder", citation_builder_node)
 
     graph.set_entry_point("asr")
@@ -73,7 +77,7 @@ def build_graph() -> StateGraph:
         {"retriever": "retriever", "generator": "generator"},
     )
 
-    graph.add_edge("generator",        "citation_builder")
+    graph.add_edge("generator", "citation_builder")
     graph.add_edge("citation_builder", END)
 
     return graph

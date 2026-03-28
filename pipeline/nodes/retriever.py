@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 import time
 from typing import Any
+
 import numpy as np
 import structlog
 from sentence_transformers import SentenceTransformer
+
 from app.config import settings
 from pipeline.state import PipelineState, SourceChunk
 from storage.chroma_client import get_collection
@@ -40,19 +43,18 @@ def _mmr(
     candidate_indices = list(range(len(docs)))
 
     while len(selected) < k and candidate_indices:
-        relevance = np.array([
-            float(np.dot(query_emb, doc_embs[i]))
-            for i in candidate_indices
-        ])
+        relevance = np.array([float(np.dot(query_emb, doc_embs[i])) for i in candidate_indices])
 
         if not selected:
             best_local = int(np.argmax(relevance))
         else:
             selected_embs = doc_embs[selected]
-            redundancy = np.array([
-                float(np.max(selected_embs @ doc_embs[i].reshape(-1, 1)))
-                for i in candidate_indices
-            ])
+            redundancy = np.array(
+                [
+                    float(np.max(selected_embs @ doc_embs[i].reshape(-1, 1)))
+                    for i in candidate_indices
+                ]
+            )
             # Subtract tiny redundancy penalty to break ties toward diversity
             mmr_score = lambda_ * relevance - (1 - lambda_) * redundancy - 1e-6 * redundancy
             best_local = int(np.argmax(mmr_score))
@@ -71,7 +73,9 @@ def retriever_node(state: PipelineState) -> PipelineState:
 
     model = _get_model()
     query_emb = model.encode(
-        [query_to_embed], normalize_embeddings=True, show_progress_bar=False,
+        [query_to_embed],
+        normalize_embeddings=True,
+        show_progress_bar=False,
     )[0]
 
     collection = get_collection()
@@ -110,13 +114,15 @@ def retriever_node(state: PipelineState) -> PipelineState:
     selected_scores: list[float] = []
     for idx in selected_indices:
         meta = metas[idx]
-        chunks.append(SourceChunk(
-            chunk_id=results["ids"][0][idx],
-            doc_title=meta.get("doc_title", "Unknown"),
-            page_num=int(meta.get("page_num", 0)),
-            chunk_text=docs[idx],
-            relevance_score=raw_scores[idx],
-        ))
+        chunks.append(
+            SourceChunk(
+                chunk_id=results["ids"][0][idx],
+                doc_title=meta.get("doc_title", "Unknown"),
+                page_num=int(meta.get("page_num", 0)),
+                chunk_text=docs[idx],
+                relevance_score=raw_scores[idx],
+            )
+        )
         selected_scores.append(raw_scores[idx])
 
     elapsed_ms = round((time.perf_counter() - t_start) * 1000, 1)

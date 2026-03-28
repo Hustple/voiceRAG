@@ -3,9 +3,12 @@ Embedder — wraps multilingual-E5-large and batch-upserts chunks into ChromaDB.
 
 E5 requires "passage: " prefix at ingestion and "query: " prefix at retrieval.
 """
+
 from __future__ import annotations
+
 import structlog
 from sentence_transformers import SentenceTransformer
+
 from app.config import settings
 from ingestion.chunker import Chunk
 from storage.chroma_client import get_collection
@@ -15,11 +18,13 @@ logger = structlog.get_logger(__name__)
 BATCH_SIZE = 64
 E5_PASSAGE_PREFIX = "passage: "
 
+
 def _load_model() -> SentenceTransformer:
     logger.info("embedder.loading_model", model=settings.EMBEDDING_MODEL)
     model = SentenceTransformer(settings.EMBEDDING_MODEL)
     logger.info("embedder.model_ready")
     return model
+
 
 def embed_and_upsert(chunks: list[Chunk]) -> int:
     if not chunks:

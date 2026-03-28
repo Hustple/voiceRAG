@@ -4,44 +4,57 @@ T3 acceptance tests — LangGraph state machine + retriever node.
 Retriever tests use a mocked ChromaDB so no real index is needed.
 Graph compilation tests verify the wiring is correct.
 """
+
 from __future__ import annotations
-import uuid
-import numpy as np
-import pytest
+
 from unittest.mock import MagicMock, patch
-from pipeline.state import PipelineState
-from pipeline.nodes.stub_nodes import asr_node
-from pipeline.nodes.classifier import classifier_node
-from pipeline.nodes.hyde import hyde_node
-from pipeline.nodes.crag_evaluator import crag_evaluator_node
-from pipeline.nodes.generator import generator_node
+
+import numpy as np
+
 from pipeline.nodes.citation_builder import citation_builder_node
 from pipeline.nodes.classifier import classifier_node
+from pipeline.nodes.crag_evaluator import crag_evaluator_node
+from pipeline.nodes.generator import generator_node
 from pipeline.nodes.hyde import hyde_node
-if False: (
-    crag_evaluator_node, generator_node, citation_builder_node,
-)
+from pipeline.nodes.stub_nodes import asr_node
+from pipeline.state import PipelineState
+
+if False:
+    (
+        crag_evaluator_node,
+        generator_node,
+        citation_builder_node,
+    )
 
 
 # ── Graph compilation ──────────────────────────────────────────────────────
 class TestGraphCompilation:
     def test_graph_compiles_without_error(self):
         from pipeline.graph import build_graph
+
         graph = build_graph()
         compiled = graph.compile()
         assert compiled is not None
 
     def test_pipeline_import_succeeds(self):
         from pipeline.graph import pipeline
+
         assert pipeline is not None
 
     def test_all_nodes_registered(self):
         from pipeline.graph import build_graph
+
         graph = build_graph()
         node_names = set(graph.nodes.keys())
         expected = {
-            "asr", "classifier", "hyde", "retriever",
-            "crag_evaluator", "self_rag", "generator", "citation_builder",
+            "asr",
+            "classifier",
+            "hyde",
+            "retriever",
+            "crag_evaluator",
+            "self_rag",
+            "generator",
+            "citation_builder",
         }
         assert expected.issubset(node_names)
 
@@ -111,11 +124,18 @@ class TestRetrieverNode:
         col.query.return_value = {
             "ids": [[f"chunk-{i}" for i in range(n_results)]],
             "documents": [[f"MSME loan eligibility text chunk {i}." for i in range(n_results)]],
-            "metadatas": [[
-                {"doc_title": "MSME Registration", "page_num": i + 1,
-                 "lang_hint": "en", "token_count": 50, "chunk_index": i}
-                for i in range(n_results)
-            ]],
+            "metadatas": [
+                [
+                    {
+                        "doc_title": "MSME Registration",
+                        "page_num": i + 1,
+                        "lang_hint": "en",
+                        "token_count": 50,
+                        "chunk_index": i,
+                    }
+                    for i in range(n_results)
+                ]
+            ],
             "embeddings": [fake_embs.tolist()],
             "distances": [[0.1 + i * 0.05 for i in range(n_results)]],
         }
@@ -142,17 +162,23 @@ class TestRetrieverNode:
 
     def test_retriever_returns_chunks(self):
         from pipeline.nodes.retriever import retriever_node
+
         state = self._base_state()
-        with patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()), \
-             patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)):
+        with (
+            patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()),
+            patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)),
+        ):
             result = retriever_node(state)
         assert len(result["chunks"]) > 0
 
     def test_retriever_chunks_have_required_fields(self):
         from pipeline.nodes.retriever import retriever_node
+
         state = self._base_state()
-        with patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()), \
-             patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)):
+        with (
+            patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()),
+            patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)),
+        ):
             result = retriever_node(state)
         for chunk in result["chunks"]:
             assert "chunk_id" in chunk
@@ -163,46 +189,58 @@ class TestRetrieverNode:
 
     def test_retriever_logs_latency(self):
         from pipeline.nodes.retriever import retriever_node
+
         state = self._base_state()
-        with patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()), \
-             patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)):
+        with (
+            patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()),
+            patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)),
+        ):
             result = retriever_node(state)
         assert "retrieval" in result["latency_map"]
         assert result["latency_map"]["retrieval"] > 0
 
     def test_retriever_uses_hyde_query_when_set(self):
         from pipeline.nodes.retriever import retriever_node
+
         state = self._base_state()
         state["hyde_query"] = "A hypothetical answer about MSME loans"
         mock_model = self._mock_model()
-        with patch("pipeline.nodes.retriever._get_model", return_value=mock_model), \
-             patch("pipeline.nodes.retriever.get_collection",
-                   return_value=self._mock_collection(3)):
+        with (
+            patch("pipeline.nodes.retriever._get_model", return_value=mock_model),
+            patch("pipeline.nodes.retriever.get_collection", return_value=self._mock_collection(3)),
+        ):
             retriever_node(state)
         encoded_text = mock_model.encode.call_args[0][0][0]
         assert "hypothetical" in encoded_text
 
     def test_retriever_handles_empty_collection(self):
         from pipeline.nodes.retriever import retriever_node
+
         state = self._base_state()
         col = MagicMock()
         col.count.return_value = 0
         col.query.return_value = {
-            "ids": [[]], "documents": [[]], "metadatas": [[]],
-            "embeddings": [[]], "distances": [[]],
+            "ids": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+            "embeddings": [[]],
+            "distances": [[]],
         }
-        with patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()), \
-             patch("pipeline.nodes.retriever.get_collection", return_value=col):
+        with (
+            patch("pipeline.nodes.retriever._get_model", return_value=self._mock_model()),
+            patch("pipeline.nodes.retriever.get_collection", return_value=col),
+        ):
             result = retriever_node(state)
         assert result["chunks"] == []
 
     def test_mmr_returns_diverse_chunks(self):
         """MMR diversity guarantee: two selected chunks must not be near-identical."""
         from pipeline.nodes.retriever import _mmr, _normalize
+
         emb_a = np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=float)
         emb_b = np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=float)  # identical to a
-        emb_c = np.array([0, 0, 1, 0, 0, 0, 0, 0], dtype=float)   # fully diverse
-        query  = np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=float)
+        emb_c = np.array([0, 0, 1, 0, 0, 0, 0, 0], dtype=float)  # fully diverse
+        query = np.array([1, 0, 0, 0, 0, 0, 0, 0], dtype=float)
         doc_embs = _normalize(np.array([emb_a, emb_b, emb_c]))
         selected = _mmr(query, doc_embs, [0, 1, 2], k=2)
         sim = float(np.dot(doc_embs[selected[0]], doc_embs[selected[1]]))
@@ -216,15 +254,19 @@ class TestRetrieverNode:
         mock_model = self._mock_model()
         mock_col = self._mock_collection(3)
 
-        with patch.object(ret_module, "_get_model", return_value=mock_model), \
-             patch.object(ret_module, "get_collection", return_value=mock_col):
+        with (
+            patch.object(ret_module, "_get_model", return_value=mock_model),
+            patch.object(ret_module, "get_collection", return_value=mock_col),
+        ):
             compiled = build_graph().compile()
-            result = compiled.invoke(PipelineState(
-                query="What is MSME loan eligibility?",
-                lang_hint="en",
-                latency_map={},
-                self_rag_retries=0,
-            ))
+            result = compiled.invoke(
+                PipelineState(
+                    query="What is MSME loan eligibility?",
+                    lang_hint="en",
+                    latency_map={},
+                    self_rag_retries=0,
+                )
+            )
 
         assert "answer" in result
         assert "query_id" in result

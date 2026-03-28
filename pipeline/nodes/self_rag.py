@@ -13,10 +13,14 @@ If [IsUSE] = no, triggers one retrieval retry (up to SELF_RAG_MAX_RETRIES).
 
 Combined with CRAG evaluator = Self-CRAG architecture (Wang et al., 2024).
 """
+
 from __future__ import annotations
+
 import time
+
 import structlog
 from groq import Groq
+
 from app.config import settings
 from pipeline.state import PipelineState, SourceChunk
 
@@ -39,6 +43,7 @@ Format:
 def _parse_reflection_tokens(text: str) -> dict[str, str]:
     """Extract IsREL, IsSUP, IsUSE values from generated text."""
     import re
+
     tokens = {}
     for token in ["IsREL", "IsSUP", "IsUSE"]:
         match = re.search(rf"\[{token}:\s*(yes|no)\]", text, re.IGNORECASE)
@@ -49,6 +54,7 @@ def _parse_reflection_tokens(text: str) -> dict[str, str]:
 def _extract_answer(text: str) -> str:
     """Strip reflection tokens from the answer text."""
     import re
+
     # Remove the reflection token line
     clean = re.sub(r"\[Is(REL|SUP|USE):[^\]]+\]", "", text)
     return clean.strip()
@@ -58,9 +64,7 @@ def _format_context(chunks: list[SourceChunk]) -> str:
     """Format chunks into a numbered context block for the prompt."""
     parts = []
     for i, chunk in enumerate(chunks, 1):
-        parts.append(
-            f"[{i}] {chunk['doc_title']} (p.{chunk['page_num']}):\n{chunk['chunk_text']}"
-        )
+        parts.append(f"[{i}] {chunk['doc_title']} (p.{chunk['page_num']}):\n{chunk['chunk_text']}")
     return "\n\n".join(parts)
 
 

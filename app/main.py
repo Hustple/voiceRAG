@@ -1,15 +1,19 @@
 from __future__ import annotations
+
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+
 import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.routes import router
 
 logger = structlog.get_logger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -17,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("voicerag.startup", env=settings.APP_ENV)
     from storage.chroma_client import get_chroma_client
     from storage.query_log import init_query_log
+
     client = get_chroma_client()
     collections = client.list_collections()
     logger.info("chroma.ready", collections=[c.name for c in collections])
@@ -25,6 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("voicerag.ready", startup_seconds=round(time.perf_counter() - t, 2))
     yield
     logger.info("voicerag.shutdown")
+
 
 def create_app() -> FastAPI:
     application = FastAPI(
@@ -42,6 +48,7 @@ def create_app() -> FastAPI:
     )
     application.include_router(router)
     return application
+
 
 app = create_app()
 

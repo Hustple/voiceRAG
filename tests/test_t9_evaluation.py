@@ -2,11 +2,12 @@
 T9 acceptance tests — RAGAs evaluation harness.
 Tests the scorer, query loading, and result structure without real pipeline calls.
 """
+
 from __future__ import annotations
+
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 
 class TestQueryFiles:
@@ -53,6 +54,7 @@ class TestQueryFiles:
 class TestHeuristicScorer:
     def test_perfect_answer_scores_high(self):
         from evaluation.eval_runner import _heuristic_scores
+
         query = "What is MSME?"
         answer = "MSME stands for Micro Small Medium Enterprises"
         contexts = ["MSME stands for Micro Small Medium Enterprises in India"]
@@ -63,20 +65,25 @@ class TestHeuristicScorer:
 
     def test_empty_answer_scores_zero_faithfulness(self):
         from evaluation.eval_runner import _heuristic_scores
+
         scores = _heuristic_scores("query", "", ["context text"], "ground truth")
         assert scores["faithfulness"] == 0.0
 
     def test_scores_between_0_and_1(self):
         from evaluation.eval_runner import _heuristic_scores
+
         scores = _heuristic_scores(
-            "MSME eligibility", "MSME loans are available",
-            ["MSME loans are for small businesses"], "MSME is for small enterprises"
+            "MSME eligibility",
+            "MSME loans are available",
+            ["MSME loans are for small businesses"],
+            "MSME is for small enterprises",
         )
         for key, val in scores.items():
             assert 0.0 <= val <= 1.0, f"{key}={val} out of range"
 
     def test_returns_all_three_metrics(self):
         from evaluation.eval_runner import _heuristic_scores
+
         scores = _heuristic_scores("q", "a", ["c"], "g")
         assert "faithfulness" in scores
         assert "answer_relevancy" in scores
@@ -86,16 +93,19 @@ class TestHeuristicScorer:
 class TestQueryLoader:
     def test_load_all_queries(self):
         from evaluation.eval_runner import _load_queries
+
         queries = _load_queries(None)
         assert len(queries) >= 8
 
     def test_load_english_only(self):
         from evaluation.eval_runner import _load_queries
+
         queries = _load_queries("en")
         assert all(q["lang"] == "en" for q in queries)
 
     def test_load_hindi_only(self):
         from evaluation.eval_runner import _load_queries
+
         queries = _load_queries("hi")
         assert all(q["lang"] == "hi" for q in queries)
 
@@ -110,24 +120,32 @@ class TestEvalRunner:
             "confidence": 0.85,
             "self_rag_retries": 0,
             "sources": [
-                {"chunk_text": "MSME loans are available for micro enterprises.",
-                 "chunk_id": "c1", "doc_title": "MSME Guide",
-                 "page_num": 1, "relevance_score": 0.9}
+                {
+                    "chunk_text": "MSME loans are available for micro enterprises.",
+                    "chunk_id": "c1",
+                    "doc_title": "MSME Guide",
+                    "page_num": 1,
+                    "relevance_score": 0.9,
+                }
             ],
             "latency_map": {"total": 1200.0},
         }
 
     def test_dry_run_uses_3_queries(self):
         from evaluation.eval_runner import run_evaluation
-        with patch("evaluation.eval_runner._run_pipeline",
-                   return_value=self._mock_pipeline_result()):
+
+        with patch(
+            "evaluation.eval_runner._run_pipeline", return_value=self._mock_pipeline_result()
+        ):
             summary = run_evaluation(lang="en", dry_run=True)
         assert summary["total_queries"] == 3
 
     def test_summary_has_aggregate(self):
         from evaluation.eval_runner import run_evaluation
-        with patch("evaluation.eval_runner._run_pipeline",
-                   return_value=self._mock_pipeline_result()):
+
+        with patch(
+            "evaluation.eval_runner._run_pipeline", return_value=self._mock_pipeline_result()
+        ):
             summary = run_evaluation(lang="en", dry_run=True)
         assert "aggregate" in summary
         agg = summary["aggregate"]
@@ -138,8 +156,10 @@ class TestEvalRunner:
 
     def test_each_result_has_ragas_scores(self):
         from evaluation.eval_runner import run_evaluation
-        with patch("evaluation.eval_runner._run_pipeline",
-                   return_value=self._mock_pipeline_result()):
+
+        with patch(
+            "evaluation.eval_runner._run_pipeline", return_value=self._mock_pipeline_result()
+        ):
             summary = run_evaluation(lang="en", dry_run=True)
         for q in summary["queries"]:
             assert "ragas" in q
@@ -148,18 +168,22 @@ class TestEvalRunner:
                 assert metric in ragas
 
     def test_results_saved_to_file(self, tmp_path, monkeypatch):
-        from evaluation.eval_runner import run_evaluation, RESULTS_DIR
         import evaluation.eval_runner as er
+        from evaluation.eval_runner import run_evaluation
+
         monkeypatch.setattr(er, "RESULTS_DIR", tmp_path)
-        with patch("evaluation.eval_runner._run_pipeline",
-                   return_value=self._mock_pipeline_result()):
+        with patch(
+            "evaluation.eval_runner._run_pipeline", return_value=self._mock_pipeline_result()
+        ):
             summary = run_evaluation(lang="en", dry_run=True)
         assert summary["total_queries"] > 0
 
     def test_aggregate_scores_between_0_and_1(self):
         from evaluation.eval_runner import run_evaluation
-        with patch("evaluation.eval_runner._run_pipeline",
-                   return_value=self._mock_pipeline_result()):
+
+        with patch(
+            "evaluation.eval_runner._run_pipeline", return_value=self._mock_pipeline_result()
+        ):
             summary = run_evaluation(lang="en", dry_run=True)
         agg = summary["aggregate"]
         for metric in ("faithfulness", "answer_relevancy", "context_precision"):

@@ -9,8 +9,11 @@ Field naming convention:
   - Generation     : answer, sources, confidence
   - Meta           : query_id, latency_map, self_rag_retries
 """
+
 from __future__ import annotations
-from typing import Optional, Any
+
+from typing import Optional
+
 from typing_extensions import TypedDict
 
 
@@ -24,37 +27,37 @@ class SourceChunk(TypedDict):
 
 class PipelineState(TypedDict, total=False):
     # ── Input ──────────────────────────────────────────────────────────────
-    query: str                        # raw text query (or ASR transcript)
-    lang_hint: Optional[str]          # caller-provided hint: 'hi' | 'en' | None
-    audio_bytes: Optional[bytes]      # raw audio for ASR node
+    query: str  # raw text query (or ASR transcript)
+    lang_hint: Optional[str]  # caller-provided hint: 'hi' | 'en' | None
+    audio_bytes: Optional[bytes]  # raw audio for ASR node
 
     # ── ASR output ─────────────────────────────────────────────────────────
-    transcript: str                   # text from ASR (or passthrough of query)
-    lang: str                         # detected language: 'hi' | 'en'
+    transcript: str  # text from ASR (or passthrough of query)
+    lang: str  # detected language: 'hi' | 'en'
 
     # ── Routing ────────────────────────────────────────────────────────────
-    route: str                        # 'simple' | 'moderate' | 'complex'
+    route: str  # 'simple' | 'moderate' | 'complex'
 
     # ── HyDE ───────────────────────────────────────────────────────────────
-    hyde_query: Optional[str]         # hypothetical answer used as retrieval query
+    hyde_query: Optional[str]  # hypothetical answer used as retrieval query
 
     # ── Retrieval ──────────────────────────────────────────────────────────
-    chunks: list[SourceChunk]         # top-k chunks after MMR reranking
-    raw_scores: list[float]           # cosine scores before MMR
+    chunks: list[SourceChunk]  # top-k chunks after MMR reranking
+    raw_scores: list[float]  # cosine scores before MMR
 
     # ── CRAG ───────────────────────────────────────────────────────────────
-    crag_action: str                  # 'CORRECT' | 'AMBIGUOUS' | 'INCORRECT'
-    crag_score: float                 # aggregate corpus confidence score
+    crag_action: str  # 'CORRECT' | 'AMBIGUOUS' | 'INCORRECT'
+    crag_score: float  # aggregate corpus confidence score
 
     # ── Self-RAG ───────────────────────────────────────────────────────────
-    self_rag_retries: int             # retry count (max = SELF_RAG_MAX_RETRIES)
+    self_rag_retries: int  # retry count (max = SELF_RAG_MAX_RETRIES)
 
     # ── Generation ─────────────────────────────────────────────────────────
-    answer: str                       # final grounded answer
-    sources: list[SourceChunk]        # chunks cited in answer
-    confidence: float                 # overall response confidence 0-1
+    answer: str  # final grounded answer
+    sources: list[SourceChunk]  # chunks cited in answer
+    confidence: float  # overall response confidence 0-1
 
     # ── Meta ───────────────────────────────────────────────────────────────
-    query_id: str                     # UUID for /explain lookup
-    latency_map: dict[str, float]     # per-node ms: {asr, classifier, ...}
-    error: Optional[str]              # set if pipeline hits an unrecoverable error
+    query_id: str  # UUID for /explain lookup
+    latency_map: dict[str, float]  # per-node ms: {asr, classifier, ...}
+    error: Optional[str]  # set if pipeline hits an unrecoverable error

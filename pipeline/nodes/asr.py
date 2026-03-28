@@ -11,11 +11,13 @@ If lang_hint is provided by the caller, it overrides detection.
 Both ASR calls are wrapped in try/except — failures return empty transcript
 so the pipeline can still attempt a text-based fallback.
 """
+
 from __future__ import annotations
-import io
-import time
-import tempfile
+
 import os
+import tempfile
+import time
+
 import structlog
 
 from app.config import settings
@@ -30,6 +32,7 @@ def _detect_language(text: str) -> str:
     """Detect language from first 100 chars. Falls back to 'en'."""
     try:
         from langdetect import detect
+
         lang = detect(text[:100])
         return lang if lang in SUPPORTED_LANGS else "en"
     except Exception:
@@ -39,6 +42,7 @@ def _detect_language(text: str) -> str:
 def _transcribe_whisper(audio_bytes: bytes) -> str:
     """Transcribe audio using local Whisper model."""
     import whisper
+
     model = whisper.load_model(settings.WHISPER_MODEL)
 
     # Write to temp file — Whisper requires a file path
@@ -56,6 +60,7 @@ def _transcribe_whisper(audio_bytes: bytes) -> str:
 def _transcribe_saaras(audio_bytes: bytes, lang: str = "hi-IN") -> str:
     """Transcribe audio using Sarvam Saaras API."""
     import httpx
+
     response = httpx.post(
         "https://api.sarvam.ai/speech-to-text",
         headers={"API-Subscription-Key": settings.SARVAM_API_KEY},

@@ -7,12 +7,18 @@ Usage:
     python -m ingestion --reset              # wipe collection + re-ingest
     python -m ingestion --dry-run            # parse + chunk only, no upsert
 """
+
 from __future__ import annotations
-import argparse, sys, time
+
+import argparse
+import sys
+import time
 from pathlib import Path
+
 import structlog
 from rich.console import Console
 from rich.table import Table
+
 from app.config import settings
 from ingestion.chunker import chunk_pages
 from ingestion.embedder import embed_and_upsert
@@ -23,12 +29,14 @@ from storage.query_log import init_query_log
 logger = structlog.get_logger(__name__)
 console = Console()
 
+
 def _reset_collection() -> None:
     try:
         get_chroma_client().delete_collection(COLLECTION_NAME)
         logger.info("ingestion.collection_deleted")
     except Exception:
         pass
+
 
 def _print_summary(chunks: list, elapsed: float) -> None:
     doc_counts: dict[str, dict] = {}
@@ -46,6 +54,7 @@ def _print_summary(chunks: list, elapsed: float) -> None:
         table.add_row(title, meta["lang"], str(len(meta["pages"])), str(meta["chunks"]))
     console.print(table)
     console.print(f"\n[green]Total:[/green] {len(chunks)} chunks indexed in {elapsed:.1f}s")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="VoiceRAG corpus ingestion")
@@ -94,14 +103,18 @@ def main() -> None:
 
     console.print("\nSpot check — querying 'MSME loan'...")
     from sentence_transformers import SentenceTransformer
+
     model = SentenceTransformer(settings.EMBEDDING_MODEL)
     q_emb = model.encode(["query: MSME loan"], normalize_embeddings=True).tolist()
     results = get_collection().query(query_embeddings=q_emb, n_results=1)
     if results["documents"] and results["documents"][0]:
         top = results["documents"][0][0]
         meta = results["metadatas"][0][0]
-        console.print(f"  [cyan]{meta['doc_title']}[/cyan] p.{meta['page_num']} — {top[:120].strip()}...")
+        console.print(
+            f"  [cyan]{meta['doc_title']}[/cyan] p.{meta['page_num']} — {top[:120].strip()}..."
+        )
     console.print("\n[bold green]T2 complete. ChromaDB ready.[/bold green]\n")
+
 
 if __name__ == "__main__":
     main()

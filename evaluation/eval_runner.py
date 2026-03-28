@@ -15,6 +15,7 @@ Usage:
 
 Results saved to evaluation/results/selfcrag.json (or baseline_naive.json).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,16 +66,16 @@ def _run_naive_rag(query: str, lang: str) -> dict:
     Used to demonstrate Self-CRAG improvement.
     """
     from pipeline.nodes.asr import asr_node
-    from pipeline.nodes.retriever import retriever_node
-    from pipeline.nodes.generator import generator_node
     from pipeline.nodes.citation_builder import citation_builder_node
+    from pipeline.nodes.generator import generator_node
+    from pipeline.nodes.retriever import retriever_node
     from pipeline.state import PipelineState
 
     state = PipelineState(
         query=query,
         lang_hint=lang,
-        route="simple",          # force simple path
-        crag_action="CORRECT",   # skip CRAG
+        route="simple",  # force simple path
+        crag_action="CORRECT",  # skip CRAG
         crag_score=0.5,
         latency_map={},
         self_rag_retries=0,
@@ -99,16 +100,18 @@ def _compute_ragas_scores(
     Falls back to simple heuristics if ragas library has issues.
     """
     try:
-        from ragas import evaluate
-        from ragas.metrics import faithfulness, answer_relevancy, context_precision
         from datasets import Dataset
+        from ragas import evaluate
+        from ragas.metrics import answer_relevancy, context_precision, faithfulness
 
-        data = Dataset.from_dict({
-            "question": [query],
-            "answer": [answer],
-            "contexts": [contexts],
-            "ground_truth": [ground_truth],
-        })
+        data = Dataset.from_dict(
+            {
+                "question": [query],
+                "answer": [answer],
+                "contexts": [contexts],
+                "ground_truth": [ground_truth],
+            }
+        )
         scores = evaluate(data, metrics=[faithfulness, answer_relevancy, context_precision])
         return {
             "faithfulness": round(float(scores["faithfulness"]), 4),
@@ -180,7 +183,6 @@ def run_evaluation(
 
         console.print(f"[{i}/{len(queries)}] {q_id}: {query[:60]}...")
 
-        t_q = time.perf_counter()
         try:
             if baseline:
                 result = _run_naive_rag(query, q_lang)
@@ -189,10 +191,7 @@ def run_evaluation(
 
             answer = result.get("answer", "")
             sources = result.get("sources", result.get("chunks", []))
-            contexts = [
-                s.get("chunk_text", s.get("text", ""))
-                for s in sources
-            ]
+            contexts = [s.get("chunk_text", s.get("text", "")) for s in sources]
 
             ragas = _compute_ragas_scores(query, answer, contexts, ground_truth)
             latency_ms = result.get("latency_map", {}).get("total", 0)
@@ -254,9 +253,14 @@ def run_evaluation(
     table.add_column("Metric", style="cyan")
     table.add_column("Score", justify="right")
     agg = summary["aggregate"]
-    table.add_row("Faithfulness", f"{agg['faithfulness']:.4f}" if agg['faithfulness'] else "N/A")
-    table.add_row("Answer relevancy", f"{agg['answer_relevancy']:.4f}" if agg['answer_relevancy'] else "N/A")
-    table.add_row("Context precision", f"{agg['context_precision']:.4f}" if agg['context_precision'] else "N/A")
+    table.add_row("Faithfulness", f"{agg['faithfulness']:.4f}" if agg["faithfulness"] else "N/A")
+    table.add_row(
+        "Answer relevancy", f"{agg['answer_relevancy']:.4f}" if agg["answer_relevancy"] else "N/A"
+    )
+    table.add_row(
+        "Context precision",
+        f"{agg['context_precision']:.4f}" if agg["context_precision"] else "N/A",
+    )
     table.add_row("Avg latency (ms)", f"{agg['avg_latency_ms']:.0f}")
     table.add_row("Avg confidence", f"{agg['avg_confidence']:.3f}")
     console.print(table)
@@ -269,8 +273,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="VoiceRAG RAGAs evaluation")
     parser.add_argument("--lang", choices=["en", "hi"], default=None)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--baseline", action="store_true",
-                        help="Run naive RAG baseline instead of Self-CRAG")
+    parser.add_argument(
+        "--baseline", action="store_true", help="Run naive RAG baseline instead of Self-CRAG"
+    )
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

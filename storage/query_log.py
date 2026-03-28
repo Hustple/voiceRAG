@@ -1,7 +1,12 @@
 from __future__ import annotations
-import json, os, sqlite3, time
+
+import json
+import os
+import sqlite3
+import time
 from contextlib import contextmanager
 from typing import Any, Generator
+
 from app.config import settings
 
 _CREATE_TABLE = """
@@ -20,6 +25,7 @@ CREATE TABLE IF NOT EXISTS queries (
 );
 """
 
+
 @contextmanager
 def _get_conn() -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(settings.QUERY_LOG_PATH)
@@ -30,10 +36,12 @@ def _get_conn() -> Generator[sqlite3.Connection, None, None]:
     finally:
         conn.close()
 
+
 def init_query_log() -> None:
     os.makedirs(os.path.dirname(os.path.abspath(settings.QUERY_LOG_PATH)), exist_ok=True)
     with _get_conn() as conn:
         conn.execute(_CREATE_TABLE)
+
 
 def write_query_record(record: dict[str, Any]) -> None:
     with _get_conn() as conn:
@@ -57,11 +65,10 @@ def write_query_record(record: dict[str, Any]) -> None:
             ),
         )
 
+
 def get_query_record(query_id: str) -> dict[str, Any] | None:
     with _get_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM queries WHERE query_id = ?", (query_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM queries WHERE query_id = ?", (query_id,)).fetchone()
     if row is None:
         return None
     r = dict(row)
@@ -70,15 +77,18 @@ def get_query_record(query_id: str) -> dict[str, Any] | None:
     r["ragas"] = json.loads(r["ragas"])
     return r
 
+
 def get_health_metrics() -> dict[str, Any]:
     with _get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM queries ORDER BY created_at DESC LIMIT 100"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM queries ORDER BY created_at DESC LIMIT 100").fetchall()
     if not rows:
         return {
-            "total_queries": 0, "avg_latency_ms": None, "avg_confidence": None,
-            "avg_faithfulness": None, "routing_distribution": {}, "node_latency_avg_ms": {},
+            "total_queries": 0,
+            "avg_latency_ms": None,
+            "avg_confidence": None,
+            "avg_faithfulness": None,
+            "routing_distribution": {},
+            "node_latency_avg_ms": {},
         }
     records = [dict(r) for r in rows]
     routing_dist: dict[str, int] = {}
@@ -97,7 +107,9 @@ def get_health_metrics() -> dict[str, Any]:
         "total_queries": len(records),
         "avg_latency_ms": round(sum(totals) / len(totals), 1),
         "avg_confidence": round(sum(confs) / len(confs), 3),
-        "avg_faithfulness": round(sum(faithfulness) / len(faithfulness), 3) if faithfulness else None,
+        "avg_faithfulness": round(sum(faithfulness) / len(faithfulness), 3)
+        if faithfulness
+        else None,
         "routing_distribution": routing_dist,
-        "node_latency_avg_ms": {k: round(sum(v)/len(v), 1) for k, v in node_totals.items()},
+        "node_latency_avg_ms": {k: round(sum(v) / len(v), 1) for k, v in node_totals.items()},
     }

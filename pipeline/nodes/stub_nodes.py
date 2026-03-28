@@ -2,8 +2,9 @@
 Stub implementations — replaced task by task.
 T6: generator and citation_builder are now real; stubs remain for asr only.
 """
+
 from __future__ import annotations
-import uuid
+
 from pipeline.state import PipelineState
 
 

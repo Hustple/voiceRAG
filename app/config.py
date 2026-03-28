@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -24,5 +26,6 @@ class Settings(BaseSettings):
     SELF_RAG_MAX_RETRIES: int = Field(default=1)
     LOG_LEVEL: str = Field(default="INFO")
     APP_ENV: str = Field(default="production")
+
 
 settings = Settings()  # type: ignore[call-arg]

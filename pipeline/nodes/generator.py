@@ -9,10 +9,14 @@ Grounding prompt enforces that every claim references a chunk number [1], [2] et
 Response is stored in state.answer as a complete string.
 Streaming to the HTTP client is handled in app/routes.py, not here.
 """
+
 from __future__ import annotations
+
 import time
+
 import structlog
 from groq import Groq
+
 from app.config import settings
 from pipeline.state import PipelineState, SourceChunk
 
@@ -42,9 +46,7 @@ ABSTAIN_RESPONSE_HI = (
 def _format_context(chunks: list[SourceChunk]) -> str:
     parts = []
     for i, chunk in enumerate(chunks, 1):
-        parts.append(
-            f"[{i}] {chunk['doc_title']} (p.{chunk['page_num']}):\n{chunk['chunk_text']}"
-        )
+        parts.append(f"[{i}] {chunk['doc_title']} (p.{chunk['page_num']}):\n{chunk['chunk_text']}")
     return "\n\n".join(parts)
 
 

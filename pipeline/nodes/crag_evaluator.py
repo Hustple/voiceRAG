@@ -12,10 +12,14 @@ one of three actions:
 The INCORRECT path short-circuits the pipeline — no LLM generation occurs,
 preventing hallucination on out-of-corpus queries.
 """
+
 from __future__ import annotations
+
 import time
+
 import structlog
 from groq import Groq
+
 from app.config import settings
 from pipeline.state import PipelineState, SourceChunk
 

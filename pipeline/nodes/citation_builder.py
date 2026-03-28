@@ -4,9 +4,13 @@ Citation builder node — assembles the final response schema.
 Adds query_id and computes total latency.
 The full response dict is what gets serialised and sent to the client.
 """
+
 from __future__ import annotations
+
 import uuid
+
 import structlog
+
 from pipeline.state import PipelineState
 
 logger = structlog.get_logger(__name__)

@@ -2,10 +2,11 @@
 T8 acceptance tests — query log, GET /explain, GET /health.
 Uses a real SQLite in-memory path so no mocking needed for storage.
 """
+
 from __future__ import annotations
-import json
-import time
+
 from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,7 +18,11 @@ class TestQueryLog:
         db = str(tmp_path / "test.db")
         monkeypatch.setenv("QUERY_LOG_PATH", db)
         monkeypatch.setenv("GROQ_API_KEY", "test")
-        import importlib, app.config as cfg, storage.query_log as ql
+        import importlib
+
+        import app.config as cfg
+        import storage.query_log as ql
+
         importlib.reload(cfg)
         importlib.reload(ql)
         ql.init_query_log()
@@ -33,8 +38,15 @@ class TestQueryLog:
             self_rag_retries=0,
             confidence=0.85,
             latency_ms={"asr": 0.0, "retrieval": 200.0, "generation": 800.0, "total": 1000.0},
-            sources=[{"chunk_id": "c1", "doc_title": "MSME Guide",
-                      "page_num": 1, "chunk_text": "MSME text.", "relevance_score": 0.9}],
+            sources=[
+                {
+                    "chunk_id": "c1",
+                    "doc_title": "MSME Guide",
+                    "page_num": 1,
+                    "chunk_text": "MSME text.",
+                    "relevance_score": 0.9,
+                }
+            ],
             ragas={},
         )
         defaults.update(kwargs)
@@ -78,11 +90,13 @@ class TestQueryLog:
 
     def test_health_metrics_with_data(self):
         for i in range(3):
-            self.ql.write_query_record(self._record(
-                query_id=f"qid-{i:03d}",
-                routing_path="simple" if i < 2 else "moderate",
-                confidence=0.8,
-            ))
+            self.ql.write_query_record(
+                self._record(
+                    query_id=f"qid-{i:03d}",
+                    routing_path="simple" if i < 2 else "moderate",
+                    confidence=0.8,
+                )
+            )
         metrics = self.ql.get_health_metrics()
         assert metrics["total_queries"] == 3
         assert metrics["avg_confidence"] == pytest.approx(0.8, rel=0.01)
@@ -90,19 +104,21 @@ class TestQueryLog:
         assert metrics["routing_distribution"]["moderate"] == 1
 
     def test_health_metrics_node_latency(self):
-        self.ql.write_query_record(self._record(
-            latency_ms={"retrieval": 200.0, "generation": 800.0, "total": 1000.0}
-        ))
+        self.ql.write_query_record(
+            self._record(latency_ms={"retrieval": 200.0, "generation": 800.0, "total": 1000.0})
+        )
         metrics = self.ql.get_health_metrics()
         assert "retrieval" in metrics["node_latency_avg_ms"]
         assert metrics["node_latency_avg_ms"]["retrieval"] == pytest.approx(200.0)
 
     def test_health_metrics_caps_at_100(self):
         for i in range(120):
-            self.ql.write_query_record(self._record(
-                query_id=f"qid-{i:03d}",
-                confidence=0.5,
-            ))
+            self.ql.write_query_record(
+                self._record(
+                    query_id=f"qid-{i:03d}",
+                    confidence=0.5,
+                )
+            )
         metrics = self.ql.get_health_metrics()
         assert metrics["total_queries"] == 100
 
@@ -123,38 +139,58 @@ class TestObservabilityEndpoints:
     def client(self, tmp_path):
         mock_chroma = MagicMock()
         mock_chroma.list_collections.return_value = []
-        with patch("storage.chroma_client._client", mock_chroma), \
-             patch("storage.chroma_client.get_chroma_client", return_value=mock_chroma):
+        with (
+            patch("storage.chroma_client._client", mock_chroma),
+            patch("storage.chroma_client.get_chroma_client", return_value=mock_chroma),
+        ):
             from app.main import app
+
             with TestClient(app, raise_server_exceptions=False) as c:
                 yield c
 
     def _seed_record(self, tmp_path, monkeypatch):
         """Write a record directly to the log for endpoint tests."""
-        import importlib, app.config as cfg, storage.query_log as ql
+        import importlib
+
+        import app.config as cfg
+        import storage.query_log as ql
+
         importlib.reload(cfg)
         importlib.reload(ql)
         ql.init_query_log()
-        ql.write_query_record({
-            "query_id": "explain-test-id",
-            "transcript": "What is MSME?",
-            "lang": "en",
-            "routing_path": "simple",
-            "crag_action": "CORRECT",
-            "self_rag_retries": 0,
-            "confidence": 0.85,
-            "latency_ms": {"asr": 0.0, "retrieval": 200.0, "generation": 800.0, "total": 1000.0},
-            "sources": [],
-            "ragas": {},
-        })
+        ql.write_query_record(
+            {
+                "query_id": "explain-test-id",
+                "transcript": "What is MSME?",
+                "lang": "en",
+                "routing_path": "simple",
+                "crag_action": "CORRECT",
+                "self_rag_retries": 0,
+                "confidence": 0.85,
+                "latency_ms": {
+                    "asr": 0.0,
+                    "retrieval": 200.0,
+                    "generation": 800.0,
+                    "total": 1000.0,
+                },
+                "sources": [],
+                "ragas": {},
+            }
+        )
 
     def test_health_returns_200(self, client):
         assert client.get("/health").status_code == 200
 
     def test_health_schema_fields(self, client):
         data = client.get("/health").json()
-        for field in ("status", "chroma_ok", "corpus_chunks", "total_queries",
-                      "routing_distribution", "node_latency_avg_ms"):
+        for field in (
+            "status",
+            "chroma_ok",
+            "corpus_chunks",
+            "total_queries",
+            "routing_distribution",
+            "node_latency_avg_ms",
+        ):
             assert field in data, f"Missing: {field}"
 
     def test_health_status_ok_or_degraded(self, client):

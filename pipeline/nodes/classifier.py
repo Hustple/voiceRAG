@@ -8,10 +8,14 @@ Returns one of three routes:
 
 Uses temp=0 for deterministic output and a strict one-word response format.
 """
+
 from __future__ import annotations
+
 import time
+
 import structlog
 from groq import Groq
+
 from app.config import settings
 from pipeline.state import PipelineState
 

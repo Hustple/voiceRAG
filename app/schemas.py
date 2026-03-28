@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -12,9 +14,11 @@ class HealthResponse(BaseModel):
     routing_distribution: dict[str, int] = Field(default_factory=dict)
     node_latency_avg_ms: dict[str, float] = Field(default_factory=dict)
 
+
 class TextQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     lang: str | None = Field(default=None)
+
 
 class SourceChunk(BaseModel):
     chunk_id: str
@@ -22,6 +26,7 @@ class SourceChunk(BaseModel):
     page_num: int
     chunk_text: str
     relevance_score: float = Field(ge=0.0, le=1.0)
+
 
 class QueryResponse(BaseModel):
     query_id: str
@@ -33,6 +38,7 @@ class QueryResponse(BaseModel):
     crag_action: str
     self_rag_retries: int = Field(default=0)
     latency_ms: dict[str, float]
+
 
 class ExplainResponse(BaseModel):
     query_id: str

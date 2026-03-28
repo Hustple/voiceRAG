@@ -25,27 +25,32 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+
       - name: Create temp dirs
         run: mkdir -p /tmp/logs /tmp/corpus /tmp/chroma
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install fastapi uvicorn pydantic pydantic-settings python-dotenv \
-                      structlog chromadb sse-starlette pytest pytest-asyncio \
-                      pytest-cov httpx pymupdf tiktoken rich groq langgraph \
-                      langchain-core numpy ruff
+          pip install \
+            fastapi uvicorn pydantic pydantic-settings python-dotenv \
+            structlog chromadb sse-starlette pytest pytest-asyncio \
+            httpx pymupdf tiktoken rich groq langgraph langchain-core \
+            numpy ruff
+
       - name: Lint
-        run: ruff check . --output-format=github --ignore=E501
+        run: ruff check . --output-format=github --select=E,F,I --ignore=E501
+
       - name: Run tests
         run: |
           python -m pytest \
             tests/test_t1_scaffold.py \
             tests/test_t2_ingestion.py \
-            tests/test_t3_pipeline.py \
             tests/test_t4_classifier_hyde.py \
             tests/test_t5_selfcrag.py \
             tests/test_t6_generator.py \

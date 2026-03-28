@@ -10,8 +10,15 @@ import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
 from pipeline.state import PipelineState
-from pipeline.nodes.stub_nodes import (
-    asr_node, classifier_node, hyde_node,
+from pipeline.nodes.stub_nodes import asr_node
+from pipeline.nodes.classifier import classifier_node
+from pipeline.nodes.hyde import hyde_node
+from pipeline.nodes.crag_evaluator import crag_evaluator_node
+from pipeline.nodes.generator import generator_node
+from pipeline.nodes.citation_builder import citation_builder_node
+from pipeline.nodes.classifier import classifier_node
+from pipeline.nodes.hyde import hyde_node
+if False: (
     crag_evaluator_node, generator_node, citation_builder_node,
 )
 

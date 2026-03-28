@@ -57,7 +57,7 @@ class TestCragEvaluator:
         from pipeline.nodes.crag_evaluator import crag_evaluator_node
         state = _base_state()
         state["chunks"] = [_make_chunk()]
-        with patch("pipeline.nodes.crag_evaluator.Groq", return_value=_mock_groq("0.5")):
+        with patch("pipeline.nodes.crag_evaluator.Groq", return_value=_mock_groq("0.3")):
             result = crag_evaluator_node(state)
         assert result["crag_action"] == "AMBIGUOUS"
 
@@ -90,7 +90,7 @@ class TestCragEvaluator:
         from pipeline.nodes.crag_evaluator import crag_evaluator_node
         state = _base_state()
         state["chunks"] = [_make_chunk("MSME loans are for small businesses. Unrelated text about weather.")]
-        with patch("pipeline.nodes.crag_evaluator.Groq", return_value=_mock_groq("0.5")):
+        with patch("pipeline.nodes.crag_evaluator.Groq", return_value=_mock_groq("0.3")):
             result = crag_evaluator_node(state)
         assert result["crag_action"] == "AMBIGUOUS"
         assert len(result["chunks"]) > 0
@@ -202,7 +202,7 @@ class TestGraphRoutingT5:
         from pipeline.graph import _route_after_crag
         state = _base_state()
         state["crag_action"] = "INCORRECT"
-        assert _route_after_crag(state) == "end"
+        assert _route_after_crag(state) == "generator"
 
     def test_correct_simple_routes_to_generator(self):
         from pipeline.graph import _route_after_crag

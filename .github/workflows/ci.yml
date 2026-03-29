@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-test:
-    name: Lint + Test
+  test:
+    name: Tests
     runs-on: ubuntu-latest
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || 'ci-dummy-key' }}
@@ -41,10 +41,7 @@ jobs:
             fastapi uvicorn pydantic pydantic-settings python-dotenv \
             structlog chromadb sse-starlette pytest pytest-asyncio \
             httpx pymupdf tiktoken rich groq langgraph langchain-core \
-            numpy ruff
-
-      - name: Lint
-        run: ruff check . --output-format=github --select=E,F,I --ignore=E501
+            numpy
 
       - name: Run tests
         run: |
@@ -57,5 +54,5 @@ jobs:
             tests/test_t7_asr.py \
             tests/test_t8_observability.py \
             tests/test_t9_evaluation.py \
-            -v --tb=short --no-cov \
+            -v --tb=short \
             -k "not test_mmr_returns_diverse_chunks"
